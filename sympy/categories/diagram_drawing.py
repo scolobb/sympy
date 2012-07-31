@@ -307,17 +307,6 @@ class DiagramGrid(object):
         return newmorphisms
 
     @staticmethod
-    def _merge_premises_conclusions(premises, conclusions):
-        """
-        Given two dictionaries of morphisms and their properties,
-        produces a single dictionary which includes elements from both
-        dictionaries.  If a morphism has some properties in premises
-        and also in conclusions, the properties in conclusions take
-        priority.
-        """
-        return dict(chain(premises.items(), conclusions.items()))
-
-    @staticmethod
     def _juxtapose_edges(edge1, edge2):
         """
         If ``edge1`` and ``edge2`` have precisely one common endpoint,
@@ -773,7 +762,7 @@ class DiagramGrid(object):
         return None
 
     @staticmethod
-    def _handle_groups(diagram, groups, merged_morphisms, hints):
+    def _handle_groups(diagram, groups, simplified_morphisms, hints):
         """
         Given the slightly preprocessed morphisms of the diagram,
         produces a grid laid out according to ``groups``.
@@ -841,7 +830,7 @@ class DiagramGrid(object):
             groups = finiteset_groups
 
         new_morphisms = []
-        for morphism in merged_morphisms:
+        for morphism in simplified_morphisms:
             dom = obj_groups[morphism.domain]
             cod = obj_groups[morphism.codomain]
             # Note that we are not really interested in morphisms
@@ -908,7 +897,7 @@ class DiagramGrid(object):
         return grid
 
     @staticmethod
-    def _generic_layout(diagram, merged_morphisms):
+    def _generic_layout(diagram, simplified_morphisms):
         """
         Produces the generic layout for the supplied diagram.
         """
@@ -920,7 +909,7 @@ class DiagramGrid(object):
             grid[0, 0] = tuple(all_objects)[0]
             return grid
 
-        skeleton = DiagramGrid._build_skeleton(merged_morphisms)
+        skeleton = DiagramGrid._build_skeleton(simplified_morphisms)
 
         grid = _GrowableGrid(2, 1)
 
@@ -1004,7 +993,7 @@ class DiagramGrid(object):
         return grid
 
     @staticmethod
-    def _get_undirected_graph(objects, merged_morphisms):
+    def _get_undirected_graph(objects, simplified_morphisms):
         """
         Given the objects and the relevant morphisms of a diagram,
         returns the adjacency lists of the underlying undirected
@@ -1014,7 +1003,7 @@ class DiagramGrid(object):
         for obj in objects:
             adjlists[obj] = []
 
-        for morphism in merged_morphisms:
+        for morphism in simplified_morphisms:
             adjlists[morphism.domain].append(morphism.codomain)
             adjlists[morphism.codomain].append(morphism.domain)
 
@@ -1026,7 +1015,7 @@ class DiagramGrid(object):
         return adjlists
 
     @staticmethod
-    def _sequential_layout(diagram, merged_morphisms):
+    def _sequential_layout(diagram, simplified_morphisms):
         r"""
         Lays out the diagram in "sequential" layout.  This method
         will attempt to produce a result as close to a line as
@@ -1037,8 +1026,9 @@ class DiagramGrid(object):
         sorted_objects = sorted(objects, key=default_sort_key)
 
         # Set up the adjacency lists of the underlying undirected
-        # graph of ``merged_morphisms``.
-        adjlists = DiagramGrid._get_undirected_graph(objects, merged_morphisms)
+        # graph of ``simplified_morphisms``.
+        adjlists = DiagramGrid._get_undirected_graph(
+            objects, simplified_morphisms)
 
         # Find an object with the minimal degree.  This is going to be
         # the root.
@@ -1080,7 +1070,7 @@ class DiagramGrid(object):
         return grid
 
     @staticmethod
-    def _drop_inessential_morphisms(merged_morphisms):
+    def _drop_inessential_morphisms(simplified_morphisms):
         r"""
         Removes those morphisms which should appear in the diagram,
         but which have no relevance to object layout.
@@ -1088,11 +1078,11 @@ class DiagramGrid(object):
         Currently this removes "loop" morphisms: the non-identity
         morphisms with the same domains and codomains.
         """
-        morphisms = [m for m in merged_morphisms if m.domain != m.codomain]
+        morphisms = [m for m in simplified_morphisms if m.domain != m.codomain]
         return morphisms
 
     @staticmethod
-    def _get_connected_components(objects, merged_morphisms):
+    def _get_connected_components(objects, simplified_morphisms):
         """
         Given a container of morphisms, returns a list of connected
         components formed by these morphisms.  A connected component
@@ -1104,7 +1094,8 @@ class DiagramGrid(object):
             component_index[o] = None
 
         # Get the underlying undirected graph of the diagram.
-        adjlist = DiagramGrid._get_undirected_graph(objects, merged_morphisms)
+        adjlist = DiagramGrid._get_undirected_graph(
+            objects, simplified_morphisms)
 
         def traverse_component(object, current_index):
             """
@@ -1140,9 +1131,9 @@ class DiagramGrid(object):
         component_morphisms = []
         for component in component_objects:
             current_morphisms = {}
-            for m in merged_morphisms:
+            for m in simplified_morphisms:
                 if (m.domain in component) and (m.codomain in component):
-                    current_morphisms[m] = merged_morphisms[m]
+                    current_morphisms[m] = simplified_morphisms[m]
 
             if len(component) == 1:
                 # Let's add an identity morphism, for the sake of
@@ -1154,23 +1145,22 @@ class DiagramGrid(object):
         return component_morphisms
 
     def __init__(self, diagram, groups=None, **hints):
-        premises = DiagramGrid._simplify_morphisms(diagram.premises)
-        conclusions = DiagramGrid._simplify_morphisms(diagram.conclusions)
-        all_merged_morphisms = DiagramGrid._merge_premises_conclusions(
-            premises, conclusions)
-        merged_morphisms = DiagramGrid._drop_inessential_morphisms(
-            all_merged_morphisms)
+        all_simplified_morphisms = DiagramGrid._simplify_morphisms(
+            diagram.morphisms)
+
+        simplified_morphisms = DiagramGrid._drop_inessential_morphisms(
+            all_simplified_morphisms)
 
         # Store the merged morphisms for later use.
-        self._morphisms = all_merged_morphisms
+        self._morphisms = all_simplified_morphisms
 
         components = DiagramGrid._get_connected_components(
-            diagram.objects, all_merged_morphisms)
+            diagram.objects, all_simplified_morphisms)
 
         if groups and (groups != diagram.objects):
             # Lay out the diagram according to the groups.
             self._grid = DiagramGrid._handle_groups(
-                diagram, groups, merged_morphisms, hints)
+                diagram, groups, simplified_morphisms, hints)
         elif len(components) > 1:
             # Note that we check for connectedness _before_ checking
             # the layout hints because the layout strategies don't
@@ -1205,9 +1195,10 @@ class DiagramGrid(object):
         elif "layout" in hints:
             if hints["layout"] == "sequential":
                 self._grid = DiagramGrid._sequential_layout(
-                    diagram, merged_morphisms)
+                    diagram, simplified_morphisms)
         else:
-            self._grid = DiagramGrid._generic_layout(diagram, merged_morphisms)
+            self._grid = DiagramGrid._generic_layout(
+                diagram, simplified_morphisms)
 
         if hints.get("transpose"):
             # Transpose the resulting grid.
@@ -1492,7 +1483,7 @@ class XypicDiagramDrawer(object):
     >>> C = Object("C")
     >>> f = NamedMorphism(A, B, "f")
     >>> g = NamedMorphism(B, C, "g")
-    >>> diagram = Diagram([f, g], {g * f: "unique"})
+    >>> diagram = Diagram({f: [], g: [], g * f: "unique"})
 
     To draw this diagram, its objects need to be laid out with a
     :class:`DiagramGrid`::
@@ -2188,7 +2179,7 @@ class XypicDiagramDrawer(object):
         >>> C = Object("C")
         >>> f = NamedMorphism(A, B, "f")
         >>> g = NamedMorphism(B, C, "g")
-        >>> diagram = Diagram([f, g], {g * f: "unique"})
+        >>> diagram = Diagram({f: [], g: [], g * f: "unique"})
 
         To draw this diagram, its objects need to be laid out with a
         :class:`DiagramGrid`::
@@ -2347,7 +2338,7 @@ def xypic_draw_diagram(diagram, masked=None, diagram_format="", \
     >>> C = Object("C")
     >>> f = NamedMorphism(A, B, "f")
     >>> g = NamedMorphism(B, C, "g")
-    >>> diagram = Diagram([f, g], {g * f: "unique"})
+    >>> diagram = Diagram({f: [], g: [], g * f: "unique"})
     >>> print xypic_draw_diagram(diagram)
     \xymatrix{
     A \ar[d]_{g\circ f} \ar[r]^{f} & B \ar[ld]^{g} \\
@@ -2380,7 +2371,7 @@ def preview_diagram(diagram, masked=None, diagram_format="", groups=None, \
     >>> C = Object("C")
     >>> f = NamedMorphism(A, B, "f")
     >>> g = NamedMorphism(B, C, "g")
-    >>> d = Diagram([f, g], {g * f: "unique"})
+    >>> d = Diagram({f: [], g: [], g * f: "unique"})
     >>> preview_diagram(d)  #doctest: +SKIP
 
     See Also

@@ -94,7 +94,7 @@ def test_DiagramGrid():
     assert grid.morphisms == {f: FiniteSet()}
 
     # A triangle.
-    d = Diagram([f, g], {g * f: "unique"})
+    d = Diagram({f: FiniteSet(), g: FiniteSet(), g * f: "unique"})
     grid = DiagramGrid(d)
 
     assert grid.width == 2
@@ -318,7 +318,7 @@ def test_DiagramGrid():
     assert grid.morphisms == {f: FiniteSet(), g: FiniteSet(), h: FiniteSet(),
                               i: FiniteSet()}
 
-    # A pullback.
+    # A pullback diagram (not the implication).
     m1 = NamedMorphism(A, B, "m1")
     m2 = NamedMorphism(A, C, "m2")
     s1 = NamedMorphism(B, D, "s1")
@@ -327,7 +327,8 @@ def test_DiagramGrid():
     f2 = NamedMorphism(E, C, "f2")
     g = NamedMorphism(E, A, "g")
 
-    d = Diagram([m1, m2, s1, s2, f1, f2], {g: "unique"})
+    d = Diagram({m1:FiniteSet(), m2:FiniteSet(), s1:FiniteSet(), s2:FiniteSet(),
+                 f1:FiniteSet(), f2:FiniteSet(), g: "unique"})
     grid = DiagramGrid(d)
 
     assert grid.width == 3
@@ -503,7 +504,8 @@ def test_DiagramGrid():
     g = NamedMorphism(B, C, "g")
     f_ = NamedMorphism(A_, B_, "f")
     g_ = NamedMorphism(B_, C_, "g")
-    d = Diagram([f, g, f_, g_], {g * f: "unique", g_ * f_: "unique"})
+    d = Diagram({f:FiniteSet(), g:FiniteSet(), f_:FiniteSet(), g_:FiniteSet(),
+                 g * f: "unique", g_ * f_: "unique"})
     grid = DiagramGrid(d)
 
     assert grid.width == 4
@@ -678,7 +680,7 @@ def test_XypicDiagramDrawer():
     "}\n"
 
     # A triangle diagram.
-    d = Diagram([f, g], {g * f:"unique"})
+    d = Diagram({f:FiniteSet(), g:FiniteSet(), g * f:"unique"})
     grid = DiagramGrid(d)
     drawer = XypicDiagramDrawer()
     assert drawer.draw(d, grid) == "\\xymatrix{\n" \
@@ -852,7 +854,9 @@ def test_XypicDiagramDrawer():
     f2 = NamedMorphism(A, B, "f2")
     g1 = NamedMorphism(C, B, "g1")
     g2 = NamedMorphism(B, C, "g2")
-    d = Diagram([f, f1, f2, g, g1, g2], {f1 * g1: "unique", g2 * f2: "unique"})
+    d = Diagram({f:FiniteSet(), f1:FiniteSet(), f2:FiniteSet(), g:FiniteSet(),
+                 g1:FiniteSet(), g2:FiniteSet(), f1 * g1: "unique",
+                 g2 * f2: "unique"})
 
     grid = DiagramGrid(d, transpose=True)
     drawer = XypicDiagramDrawer()
