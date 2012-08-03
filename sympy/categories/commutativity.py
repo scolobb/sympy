@@ -135,3 +135,23 @@ def diagram_embeddings(pattern, model):
     model_info = build_adj_matrix_edge_morphisms(
         model, model_obj_idx, model_adj_matrix, only_generators=False)
     model_edge_morphisms, model_in_degrees, model_out_degrees = model_info
+
+    # `M_0` is set up similarly to the instructions for digraphs in
+    # [Ullm1976], p 9.  The difference arises because [Ullm1976] talks
+    # about digraphs, while finite diagrams are directed multigraphs.
+    npattern = len(pattern.objects)
+    nmodel = len(model.objects)
+    M_0 = zeros(npattern, nmodel)
+    for v_p in xrange(npattern):
+        for v_m in xrange(nmodel):
+            if (pattern_in_degrees[v_p] <= model_in_degrees[v_m]) and \
+               (pattern_out_degrees[v_p] <= model_out_degrees[v_m]):
+                # v_p in the pattern and v_m in the model could be
+                # mapped to each other in an isomorphism.
+                #
+                # Intuitively, since the vertex ``v_m`` in the model
+                # graph has more ingoing and outgoing edges, we could
+                # "put" the vertex ``v_p`` and all its adjacent edges
+                # "over" the vertex ``v_m`` such that all of ``v_p``'s
+                # edges math some of ``v_m``'s edges.
+                M_0[v_p, v_m] = 1
