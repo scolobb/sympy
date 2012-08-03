@@ -65,8 +65,10 @@ def diagram_embeddings(pattern, model):
     def build_adj_matrix_edge_morphisms(diagram, obj_idx, adj_matrix,
                                         only_generators):
         """
-        Fills in the adjacency matrix ``adj_matrix`` and returns the
-        corresponding *_edge_morphisms mapping.
+        Fills in the adjacency matrix ``adj_matrix``.  Returns the
+        corresponding *_edge_morphisms mapping, the input degrees of
+        the vertices, and the output degree of the vertices as lists
+        of numbers.
 
         If ``only_generators == True``, it builds the adjacency matrix
         based on the generators of the diagram.  Otherwise it uses the
@@ -85,11 +87,24 @@ def diagram_embeddings(pattern, model):
         else:
             morphisms = diagram.expanded_generators
 
+        in_degrees = [0] * len(diagram.objects)
+        out_degrees = list(in_degrees)
+
         # We only work with finite diagrams here, this is why we can
         # simply iterate over all morphisms.
         for m in morphisms:
             dom_idx = obj_idx[m.domain]
             cod_idx = obj_idx[m.codomain]
+
+            # Note that we are not computing the degree of the
+            # vertices in the graph which we will eventually build
+            # from the diagram.  Instead, we compute the degrees as
+            # they are in the original multigraph.  That's because
+            # these degrees will only be used to initialise the matrix
+            # M_0, and at that point we would like to be as close as
+            # possible to the multigraph situation.
+            out_degrees[dom_idx] += 1
+            in_degrees[cod_idx] += 1
 
             adj_matrix[dom_idx, cod_idx] = 1
 
@@ -99,7 +114,7 @@ def diagram_embeddings(pattern, model):
             else:
                 edge_morphisms[edge] = [m]
 
-        return edge_morphisms
+        return edge_morphisms, in_degrees, out_degrees
 
     # We only consider the generators of ``model`` because all other
     # morphisms should be mapped in full accordance with how the
@@ -113,7 +128,10 @@ def diagram_embeddings(pattern, model):
     # though, because they can be explicitly specified for composites
     # and can thus be different from the intersection of properties of
     # the components.
-    pattern_edge_morphisms = build_adj_matrix_edge_morphisms(
+    pattern_info = build_adj_matrix_edge_morphisms(
         pattern, pattern_obj_idx, pattern_adj_matrix, only_generators=True)
-    model_edge_morphisms = build_adj_matrix_edge_morphisms(
+    pattern_edge_morphisms, pattern_in_degrees, pattern_out_degrees = pattern_info
+
+    model_info = build_adj_matrix_edge_morphisms(
         model, model_obj_idx, model_adj_matrix, only_generators=False)
+    model_edge_morphisms, model_in_degrees, model_out_degrees = model_info
