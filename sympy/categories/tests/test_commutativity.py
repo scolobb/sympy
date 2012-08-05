@@ -28,3 +28,14 @@ def test_diagram_embeddings():
         ])
 
     assert set(diagram_embeddings(tri, square)) == embeddings
+
+    # Test how properties are preserved while constructing the
+    # embeddings of a triangle into a square,
+    tri = Diagram({f: "golden", g: "silver"})
+    square = Diagram({f: [], g: [], h: "golden", k: "silver"})
+
+    embeddings = set([
+        Dict({f: h, g: k, g * f: k * h, id_A: id_A, id_B: id_C, id_D: id_D}),
+        ])
+
+    assert set(diagram_embeddings(tri, square)) == embeddings
