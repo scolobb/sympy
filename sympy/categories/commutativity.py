@@ -17,7 +17,8 @@ J. Association of Computing Machinery, March, 1976, 16, 31--42.
 """
 
 from sympy.categories import Diagram
-from sympy import zeros, Matrix
+from sympy import zeros, Matrix, Dict
+from itertools import product
 
 def diagram_embeddings(pattern, model):
     """
@@ -283,3 +284,84 @@ def diagram_embeddings(pattern, model):
 
         # Step 7.
         return
+
+    def match_morphisms(pattern_morphisms, model_morphisms, morphism_mapping):
+        """
+        Produces all property-based matches between two lists of
+        morphisms.
+
+        It is supposed that the edge of the pattern, to which
+        ``pattern_morphisms`` is associated, is mapped by graph
+        embedding, to the edge of the model, to which
+        ``model_morphisms`` is associated.  This function does not
+        check this condition, however.
+
+        ``morphism_mapping`` is the accumulator which will contain one
+        of the sought mappings in every terminal case of recursion.
+        """
+        if not pattern_morphisms:
+            # We have finished constructing the match.
+            yield dict(morphism_mapping)
+            return
+
+        pattern_morphism = pattern_morphisms[0]
+        pattern_tail = pattern_morphisms[1:]
+
+        for model_morphism in model_morphisms:
+            if model[model_morphism] == pattern[pattern_morphism]:
+                # Yay, another match.
+                morphism_mapping[pattern_morphism] = model_morphism
+
+                # Copy ``model_morphisms`` and drop the found match.
+                model_morphisms_ = list(model_morphisms)
+                model_morphisms_.remove(model_morphism)
+
+                for mapping in match_morphisms(pattern_tail, model_morphisms_,
+                                               morphism_mapping):
+                    yield mapping
+
+    for M in subgraph_isomorphisms(M_0, 0, F):
+        # Decode ``M`` into actual vertex mapping.
+        mapping = [None] * npattern
+        for v_p in xrange(M.rows):
+            # Note that there is exactly one 1 in every row of M.
+            for j in xrange(M.cols):
+                if M[v_p, j] == 1:
+                    mapping[v_p] = j
+                    break
+
+        # Collect the generators for morphism mappings for each edge.
+        morphism_mappings = []
+        for (v_pattern, w_pattern), pattern_morphisms in \
+                pattern_edge_morphisms.items():
+            # See to what edge this is mapped in the model, and get
+            # the corresponding morphisms in the model.
+            v_model = mapping[v_pattern]
+            w_model = mapping[w_pattern]
+            model_morphisms = model_edge_morphisms[(v_model, w_model)]
+
+            morphism_mapping = match_morphisms(pattern_morphisms,
+                                               model_morphisms, {})
+
+            morphism_mappings.append(morphism_mapping)
+
+        # Finally, generate all morphism embeddings.  Note that now we
+        # only know how the _generator morphisms_ of the pattern are
+        # mapped into the model, so we are not producing full diagram
+        # embeddings as of yet.
+        #
+        # Remember that ``morphism_mappings`` is a list of generators,
+        # with a generator per edge of the pattern.  Each generator
+        # produces all possible property-preserving mappings between
+        # the set of morphisms, associated with an edge in the
+        # pattern, and the set of morphisms of the corresponding edge
+        # in the model.  We would like to produce the Cartesian
+        # product of all these generators, which will represent an
+        # embedding of the pattern into the model.
+        for embedding_tuple in product(*morphism_mappings):
+            # ``embedding_tuple`` is an element of the Cartesian
+            # product of the generators, i.e., it's a tuple of dicts.
+            # Squash the all those dicts into one big dictionary.
+            generator_embedding = {}
+            for morphism_mapping in embedding_tuple:
+                generator_embedding.update(morphism_mapping)
