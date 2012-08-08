@@ -202,6 +202,113 @@ def diagram_embeddings(pattern, model):
     # model.
     F = [False] * nmodel
 
+    def check_refinement_condition(M, A, B, i, j):
+        """
+        Given the adjacency matrix of the pattern (``A``), of the
+        model (``B``) and a matrix ``M``, checks the modified
+        condition (2) from [Ullm1976] for the element `M_{ij}`.  The
+        modified condition (2) is on page 9.
+
+        This function and the next two functions all apply the
+        refinement procedure.  The idea behind splitting the code up
+        this much is to keep everything as intelligible as possible.
+
+        If the refinement condition holds, then `M_{ij}` is _not_
+        changed to 0.
+        """
+        # Condition 2 consists of two cases, both of which are
+        # formulated like "for every `x` there is `y`", this is why we
+        # will check both cases separately, but in the same two nested
+        # loops.
+        for x in xrange(npattern):
+            # There's a fine subtlety in checking the conditions.  If
+            # there is no `x` such that `A_{ix} = 1`, the first case
+            # of the condition is actually true.  Ditto for `A_{xi}`.
+
+            if A[i, x] == 0:
+                # No such edge `(i, x)` in the pattern.  Fine, this
+                # case is true.
+                case_1 = True
+            else:
+                # Additional check required.
+                case_1 = False
+
+            if A[x, i] == 0:
+                # No such edge `(x, i)` in the pattern.  Fine, this
+                # case is true.
+                case_2 = True
+            else:
+                # Additional check required.
+                case_2 = False
+
+            for y in xrange(nmodel):
+                # Case 1.
+                if not case_1 and (A[i, x] == 1) and (M[x, y] * B[j, y] == 1):
+                    case_1 = True
+                # Case 2.
+                if not case_2 and (A[x, i] == 1) and (M[x, y] * B[y, j] == 1):
+                    case_2 = True
+
+            if not case_1 or not case_2:
+                return False
+
+        return True
+
+    def refine_one_step(M, A, B):
+        """
+        Given the adjacency matrix of the pattern (``A``), of the
+        model (``B``) and a matrix ``M``, applies one iteration of the
+        refinement procedure from [Ullm1976].
+
+        The idea behind the refining procedure is to look ahead a bit
+        and cut off those mappings which will definitely not bring us
+        to an isomorphism.
+
+        This function will also check if there are rows that contain
+        no ones.  If this is the case, it will return ``False``;
+        otherwise, it will return ``True``.
+
+        The side effects (i.e., modifying ``M`` and returning a flag
+        at the same time) are the result of an attempt to follow
+        [Ullm1976] as closely as possible.
+        """
+        for i in xrange(M.rows):
+            empty_row = True
+            for j in xrange(M.cols):
+                if (M[i, j] == 1):
+                    empty_row = False
+                    if not check_refinement_condition(M, A, B, i, j):
+                        M[i, j] = 0
+
+            if empty_row:
+                return False
+
+        return True
+
+    def refine(M, A, B):
+        """
+        Given the adjacency matrix of the pattern (``A``), of the
+        model (``B``), and a matrix ``M``, applies the full refinement
+        procedure from [Ullm1976].
+
+        This function calls ``refine_one_step`` until there are
+        changes to ``M``.
+        """
+        M_last = Matrix(M)
+
+        # Mind the side effects!
+        if not refine_one_step(M, A, B):
+            return False
+
+        while M != M_last:
+            # Mind the side effects!
+            if not refine_one_step(M, A, B):
+                return False
+
+            M_last = Matrix(M)
+
+        return True
+
     def subgraph_isomorphisms(M, d, F):
         """
         Applies Ullman's algorithm for subgraph isomorphisms.  This
@@ -264,6 +371,12 @@ def diagram_embeddings(pattern, model):
                 M[d, j] = 0
             for j in xrange(k + 1, nmodel):
                 M[d, j] = 0
+
+            # Mind the side effects!
+            if not refine(M, pattern_adj_matrix, model_adj_matrix):
+                # No isomorphisms can be further constructed from
+                # here.
+                return
 
             # Step 4, the else part of the sentence.
             if d == npattern - 1:
