@@ -428,7 +428,7 @@ def diagram_embeddings(pattern, model):
         pattern_tail = pattern_morphisms[1:]
 
         for model_morphism in model_morphisms:
-            if model[model_morphism] == pattern[pattern_morphism]:
+            if model[model_morphism].subset(pattern[pattern_morphism]):
                 # Yay, another match.
                 morphism_mapping[pattern_morphism] = model_morphism
 
