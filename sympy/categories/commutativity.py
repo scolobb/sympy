@@ -86,7 +86,14 @@ def diagram_embeddings(pattern, model):
         edge_morphisms = {}
 
         if only_generators:
-            morphisms = diagram.generators
+            # Not only do we want the generators of the diagram, but
+            # also only those generators, which are not composites.
+            # ``Diagram`` does not simplify all such morphisms out,
+            # such morphisms may have some additional properties.  We
+            # do not really care about that here, however.  Properties
+            # will be addressed at a later time.
+            morphisms = [m for m in diagram.generators
+                         if not isinstance(m, CompositeMorphism)]
         else:
             morphisms = diagram.expanded_generators
 
