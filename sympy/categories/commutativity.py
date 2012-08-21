@@ -2,7 +2,7 @@
 This module contains the functionality pertaining to deciding the
 commutativity of diagrams and diagrammatic implications (in the sense
 of the classes :class:`Diagram` and :class:`Implication`).
-
+n
 TODO: Give more details about this and also some examples.
 
 See Also
@@ -16,7 +16,7 @@ References
 J. Association of Computing Machinery, March, 1976, 16, 31--42.
 """
 
-from sympy.categories import Diagram
+from sympy.categories import Diagram, CompositeMorphism
 from sympy import zeros, Matrix, Dict
 from itertools import product
 
@@ -320,6 +320,15 @@ def diagram_embeddings(pattern, model):
                                                morphism_mapping):
                     yield mapping
 
+    def map_composite(pattern_composite, generator_embedding):
+        """
+        Given a composite morphism in the pattern and the embeddings
+        of the generators, produces the corresponding composite
+        morphism in the model.
+        """
+        return CompositeMorphism([generator_embedding[component]
+                                  for component in pattern_composite])
+
     for M in subgraph_isomorphisms(M_0, 0, F):
         # Decode ``M`` into actual vertex mapping.
         mapping = [None] * npattern
@@ -365,3 +374,31 @@ def diagram_embeddings(pattern, model):
             generator_embedding = {}
             for morphism_mapping in embedding_tuple:
                 generator_embedding.update(morphism_mapping)
+
+            # The last step is to walk through all composites in the
+            # pattern and check how whether there counterparts in the
+            # model have the necessary properties.
+
+            # We will keep the embeddings of the composites in a
+            # separate dictionary, to make it easier for
+            # ``map_composite`` to dig up its information.
+            composite_embedding = {}
+            good_embedding = True
+            for pattern_morphism in pattern.expanded_generators:
+                if isinstance(pattern_morphism, CompositeMorphism):
+                    model_composite = map_composite(pattern_morphism,
+                                                    generator_embedding)
+                    if model[model_composite].subset(pattern[pattern_morphism]):
+                        composite_embedding[pattern_morphism] = model_composite
+                    else:
+                        # This is bad news, but this embedding does
+                        # not fit.
+                        good_embedding = False
+                        break
+
+            if good_embedding:
+                # Everything done here; just merge the two
+                # dictionaries and yield them.
+                embedding = dict(generator_embedding)
+                embedding.update(composite_embedding)
+                yield Dict(embedding)
