@@ -40,6 +40,12 @@ def test_diagram_embeddings():
 
     assert set(diagram_embeddings(tri, square)) == embeddings
 
+    # Test explicit properties on composite morphisms.
+    tri1 = Diagram({f: "golden", g: "golden"})
+    tri2 = Diagram({f: "golden", g: "golden", g * f: ["wooden"]})
+    assert set(diagram_embeddings(tri1, tri2)) == set([])
+    assert set(diagram_embeddings(tri2, tri1)) == set([])
+
     # Test the embeddings of the square into itself.
     embeddings = set([
         Dict({f: f, g: g, h: h, k: k, g * f: g * f, k * h: k * h,

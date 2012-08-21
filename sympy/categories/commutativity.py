@@ -244,7 +244,10 @@ def diagram_embeddings(pattern, model):
 
         This function will also check if there are rows that contain
         no ones.  If this is the case, it will return ``False``;
-        otherwise, it will return ``True``.
+        otherwise, it will return ``True``.  (Judging by the current
+        test coverage, it looks like this check may just be redundant;
+        however, I'd prefer keeping it in order to stay on the safe
+        side (since [Ullm1976] does do it as well))
 
         The side effects (i.e., modifying ``M`` and returning a flag
         at the same time) are the result of an attempt to follow
