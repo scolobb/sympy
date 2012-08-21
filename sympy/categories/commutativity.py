@@ -374,9 +374,9 @@ def diagram_embeddings(pattern, model):
 
             # Mind the side effects!
             if not refine(M, pattern_adj_matrix, model_adj_matrix):
-                # No isomorphisms can be further constructed from
-                # here.
-                return
+                # Try to set other columns in this row to zero.
+                M = Matrix(M_d)
+                continue
 
             # Step 4, the else part of the sentence.
             if d == npattern - 1:
