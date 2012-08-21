@@ -167,28 +167,6 @@ def diagram_embeddings(pattern, model):
                 # edges math some of ``v_m``'s edges.
                 M_0[v_p, v_m] = 1
 
-    def is_subgraph_isomorphism(M, A, B):
-        """
-        Given the adjacency matrix of the pattern (``A``), of the
-        model (``B``) and a matrix ``M``, checks whether ``M`` defines
-        an embedding of the graph defined by ``A`` into the graph
-        defined by ``B``.
-
-        In other words, this function checks condition (1) from
-        [Ullm1976].  Note that, as different from this source, in
-        computing `C`, _one more_ transposition is made.  In other
-        words, this function actually computes the _transposed_
-        version of the `C` shown in [Ullm1976].  The reason is
-        formally explained in [???].
-        """
-        C = (M * (M * B).transpose()).transpose()
-
-        for i in xrange(A.rows):
-            for j in xrange(A.cols):
-                if (A[i, j] == 1) and (C[i, j] == 0):
-                    return False
-        return True
-
     # Note that while this code follows [Ullm1976] as closely as
     # possible, the correspondence between the steps in the article
     # and the steps in this function should not be considered
@@ -380,12 +358,15 @@ def diagram_embeddings(pattern, model):
 
             # Step 4, the else part of the sentence.
             if d == npattern - 1:
-                # We have just completed another matrix, which might be an
-                # isomorphism.  Let's check that (cf. condition (1) in
-                # [Ullm1976]).
-                if is_subgraph_isomorphism(
-                    M, pattern_adj_matrix, model_adj_matrix):
-                    yield M
+                # We have just completed another matrix, which is an
+                # isomorphism.  We do not need to check this, because
+                # applying the refinement procedure guarantees that
+                # [Ullm1976].
+                #
+                # Essentially, if `M` hadn't been an isomorphism, we
+                # would have skipped it in the if statement invoking
+                # ``refine``.
+                yield M
             else:
                 # Step 6.
                 F[k] = True
