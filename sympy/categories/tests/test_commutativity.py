@@ -1,6 +1,7 @@
 from sympy.categories import (Object, NamedMorphism, IdentityMorphism,
                               Diagram)
 from sympy.categories import diagram_embeddings
+from sympy.categories.commutativity import _check_commutativity_with_diagrams
 from sympy import Dict
 
 def test_diagram_embeddings():
@@ -229,3 +230,47 @@ def test_diagram_embeddings():
                  f * g * f: h * k * h * k * h * k * h,
                  g * f * g: k * h * k * h * k, id_A: k * h,id_B: id_D,
                  f: h * k * h, g: k}) in embeddings
+
+def test_check_commutativity_with_diagrams():
+    # We will a check a partial formulation of a simple theorem
+    # related to zero objects.
+    A = Object("A")
+    B = Object("B")
+    X = Object("X")
+    Y = Object("Y")
+    Z = Object("Z")
+    id_Z = IdentityMorphism(Z)
+
+    # First, define a zero object.  A zero object is an object which
+    # is final _and_ initial.
+
+    # `Z` is a final object if for any object `X` there exists exactly
+    # one morphism `X\rightarrow Z`.  The uniqueness part of this can
+    # also be stated as "any two morphisms `f_1:X\rightarrow Z` and
+    # `f_2:X\rightarrow Z` are equal".
+    f1 = NamedMorphism(X, Z, "f1")
+    f2 = NamedMorphism(X, Z, "f2")
+    final_object = Diagram({f1: [], f2: [], id_Z: "zero"})
+
+    # `Z` is an initial object if for any object `Y` there exists
+    # exactly one morphism `Z\rightarrow Y`.  The uniqueness part of
+    # this statement can be formulated as "any two morphisms
+    # `g_1:Z\rightarrow Y` and `g_2:Z\rightarrow Y` are equal".
+    g1 = NamedMorphism(Z, Y, "g1")
+    g2 = NamedMorphism(Z, Y, "g2")
+    initial_object = Diagram({g1: [], g2: [], id_Z: "zero"})
+
+    # Now, our simple theorem.  Consider two arbitrary objects `A` and
+    # `B`, a zero object `Z`, and the morphisms `h_1:A\rightarrow Z`,
+    # `k_1:Z\rightarrow B`, `h_2:A\rightarrow Z`, and
+    # `k_2:Z\rightarrow B`.  Then `k_1\circ h_1 = k_2\circ h_2`.
+    #
+    h1 = NamedMorphism(A, Z, "h1")
+    k1 = NamedMorphism(Z, B, "k1")
+    h2 = NamedMorphism(A, Z, "h2")
+    k2 = NamedMorphism(Z, B, "k2")
+    theorem = Diagram({h1: [], k1: [], h2: [], k2: [],
+                       id_Z: "zero"})
+
+    assert _check_commutativity_with_diagrams(
+        theorem, [final_object, initial_object])

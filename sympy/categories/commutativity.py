@@ -506,3 +506,18 @@ def diagram_embeddings(pattern, model):
                 embedding = dict(generator_embedding)
                 embedding.update(composite_embedding)
                 yield Dict(embedding)
+
+def _check_commutativity_with_diagrams(diagram, commutative_diagrams):
+    """
+    Given a :class`Diagram` and a collection of :class:`Diagram`'s
+    known to be commutative, decides whether ``diagram`` is
+    commutative.
+
+    This is known as the commutativity stage of inference [???].
+
+    References
+    ==========
+
+    [???] TODO: Add a reference to the blog post.
+    """
+    pass
