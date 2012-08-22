@@ -520,4 +520,28 @@ def _check_commutativity_with_diagrams(diagram, commutative_diagrams):
 
     [???] TODO: Add a reference to the blog post.
     """
-    pass
+    def reachable_objects(base_obj, diagram):
+        """
+        Returns the set of objects in ``diagram`` reachable from
+        ``object``.
+        """
+        # We will trust ``Diagram.is_hom_set_empty`` to be
+        # sufficiently efficient.
+        reachable = set([])
+        for obj in diagram.objects:
+            if not diagram.is_hom_set_empty(base_obj, obj):
+                reachable.add(obj)
+        return reachable
+
+    def reverse_reachable_objects(base_obj, diagram):
+        """
+        Returns the set of objects in ``diagram`` from which
+        ``object`` is reachable .
+        """
+        # We will trust ``Diagram.is_hom_set_empty`` to be
+        # sufficiently efficient.
+        reverse_reachable = set([])
+        for obj in diagram.objects:
+            if not diagram.is_hom_set_empty(obj, base_obj):
+                reverse_reachable.add(obj)
+        return reverse_reachable
