@@ -896,3 +896,12 @@ def _apply_implication(implication, diagram):
             else:
                 registered_regions.add(affected_subdiagram)
                 yield (modified_diagram, affected_subdiagram)
+
+def is_diagram_commutative(diagram, commutative_diagrams_implications):
+    """
+    Given a collection of commutative diagrams and commutative
+    implications, checks whether ``diagram`` is commutative.
+
+    TODO: Expand the docstring
+    """
+    pass

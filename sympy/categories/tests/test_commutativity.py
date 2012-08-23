@@ -1,6 +1,6 @@
 from sympy.categories import (Object, NamedMorphism, IdentityMorphism,
                               Diagram, Implication)
-from sympy.categories import diagram_embeddings
+from sympy.categories import diagram_embeddings, is_diagram_commutative
 from sympy.categories.commutativity import (_check_commutativity_with_diagrams,
                                             _apply_implication)
 from sympy import Dict
@@ -325,3 +325,74 @@ def test_apply_implication():
          Diagram(k1, m1, h1, k2, m2))
         ])
     assert set(_apply_implication(imp, square)) == results
+
+def test_is_diagram_commutative():
+    # We will now check the complete formulation of the simple theorem
+    # evoked in ``test_check_commutativity_with_diagrams``.  The
+    # theorem is as follows.
+    #
+    # Let `Z_1` and `Z_2` be two zero objects in a category with zero
+    # objects.  Consider two objects `A` and `B` in the same category.
+    # Define the morphisms `f_1:A\rightarrow Z_1`, `g_1:Z_1\rightarrow
+    # B`, `f_2:A\rightarrow Z_2`, `g_2:Z_2\rightarrow B`.  Then
+    # `g_1\circ f_1 = g_2\circ f_2`.
+    #
+    # We will now build the theorem step by step.  Let `Z` be a zero
+    # object.  Zero objects are, first of all, initial objects, i.e.,
+    # for any object `Y` there is exactly one morphism `f:Z\rightarrow
+    # Y`.
+
+    Y = Object("Y")
+    Z = Object("Z")
+    id_Y = IdentityMorphism(Y)
+    id_Z = IdentityMorphism(Z)
+
+    # The existence part.
+    f = NamedMorphism(Y, Z, "f")
+    existence_initial = Implication(
+        Diagram({id_Y: [], id_Z: "zero"}),
+        Diagram(f))
+
+    # The uniqueness part can be formulated as follows: for any object
+    # `Y` any two morphisms `f:Z\rightarrow Y` and `g:Z\rightarrow Y`
+    # are equal.
+    g = NamedMorphism(Y, Z, "g")
+    uniqueness_initial = Diagram({f: [], g: [], id_Z: "zero"})
+
+    # Dually, define describe that a zero object `Z` is a final
+    # object.
+
+    X = Object("X")
+    id_X = IdentityMorphism(X)
+
+    f = NamedMorphism(X, Z, "f")
+    existence_final = Implication(
+        Diagram({id_X: [], id_Z: "zero"}),
+        Diagram(f))
+
+    g = NamedMorphism(X, Z, "g")
+    uniqueness_final = Diagram({f: [], g: [], id_Z: "zero"})
+
+    # Now, formulate the theorem.
+    A = Object("A")
+    B = Object("B")
+    Z1 = Object("Z1")
+    Z2 = Object("Z2")
+    id_Z1 = IdentityMorphism(Z1)
+    id_Z2 = IdentityMorphism(Z2)
+    f1 = NamedMorphism(A, Z1, "f1")
+    g1 = NamedMorphism(Z1, B, "g1")
+    f2 = NamedMorphism(A, Z2, "f2")
+    g2 = NamedMorphism(Z2, B, "g2")
+
+    theorem = Diagram({f1: [], g1: [], f2: [], g2: [],
+                       id_Z1: "zero", id_Z2: "zero"})
+    assert is_diagram_commutative(theorem,
+                                  [existence_initial, uniqueness_initial,
+                                   existence_final, uniqueness_final])
+
+    theorem = Diagram({f1: [], g1: [], f2: [], g2: [],
+                       id_Z1: "zero", id_Z2: []})
+    assert not is_diagram_commutative(theorem,
+                                      [existence_initial, uniqueness_initial,
+                                       existence_final, uniqueness_final])

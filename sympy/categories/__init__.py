@@ -25,4 +25,4 @@ from baseclasses import (Object, Morphism, IdentityMorphism,
 from diagram_drawing import (DiagramGrid, XypicDiagramDrawer,
                              xypic_draw_diagram, preview_diagram)
 
-from commutativity import diagram_embeddings
+from commutativity import diagram_embeddings, is_diagram_commutative
