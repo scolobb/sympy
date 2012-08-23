@@ -18,7 +18,7 @@ J. Association of Computing Machinery, March, 1976, 16, 31--42.
 
 from sympy.categories import Diagram, CompositeMorphism
 from sympy import zeros, Matrix, Dict
-from itertools import product
+from itertools import product, combinations
 
 def diagram_embeddings(pattern, model):
     """
@@ -528,6 +528,9 @@ def _check_commutativity_with_diagrams(diagram, commutative_diagrams):
 
     This is known as the commutativity stage of inference [???].
 
+    TODO: Explain why we don't care about morphism properties in this
+    function.
+
     References
     ==========
 
@@ -558,3 +561,148 @@ def _check_commutativity_with_diagrams(diagram, commutative_diagrams):
             if not diagram.is_hom_set_empty(obj, base_obj):
                 reverse_reachable.add(obj)
         return reverse_reachable
+
+    def can_subdiagrams_be_merged(subdiagram1, subdiagram2,
+                                  commutative_subdiagrams):
+        """
+        Checks if two commutative subdiagrams can be merged.
+
+        Two commutative subdiagrams can be merged if they have a
+        common commutative subdiagram and the following condition
+        holds.  Consider a pair of objects `C_1` and `C_2` in the
+        common subdiagram for which there exists `A` in one of the
+        subdiagrams and `B` in the other one such that there exist two
+        different composite morphisms `f_1, f_2:A\rightarrow B`, where
+        `f_1` passes through `C_1` and `f_2` passes through `C_2`.  To
+        be able to merge two such subdiagrams `C_1` and `C_2` should
+        be connected with a morphism in the common subdiagram.
+
+        See [???] for a more detailed explanation and formal proof.
+
+        TODO: Add a reference to the blog post.
+        """
+        common_subdiagram = Diagram(set(subdiagram1.generators) &
+                                    set(subdiagram2.generators))
+        if not common_subdiagram.generators:
+            return False
+
+        if not any(common_subdiagram <= commutative_subdiagram
+                   for commutative_subdiagram in commutative_subdiagrams):
+            # ``common_subdiagram`` is not contained in any of the
+            # subdiagrams known to be commutative.
+            return False
+
+        common_objects = common_subdiagram.objects
+
+        # Collect the reachability information for the common objects.
+        # Note that we have to collect that information in _both_
+        # subdiagrams.
+        reachability1 = {}
+        reachability2 = {}
+        reverse_reachability1 = {}
+        reverse_reachability2 = {}
+        for obj in common_objects:
+            reachability1[obj] = reachable_objects(obj, subdiagram1)
+            reachability2[obj] = reachable_objects(obj, subdiagram2)
+            reverse_reachability1[obj] = reverse_reachable_objects(
+                obj, subdiagram1)
+            reverse_reachability2[obj] = reverse_reachable_objects(
+                obj, subdiagram2)
+
+        # Go through all pairs of common objects and check whether
+        # those pairs for which `f_1` and `f_2` exist (see the
+        # docstring) are connected with something in at least one of
+        # the subdiagrams.
+        for (obj1, obj2) in combinations(common_objects, 2):
+            # This shows whether there are morphisms starting in
+            # ``subdiagram2`` and ending in ``subdiagram1``.
+            direction1 = (reachability1[obj1] & reachability1[obj2]) and \
+                         (reverse_reachability2[obj1] &
+                          reverse_reachability2[obj2])
+
+            # This shows the reverse: whether there are morphisms
+            # starting in ``subdiagram1`` and ending in
+            # ``subdiagram2``.
+            direction2 = (reachability2[obj1] & reachability2[obj2]) and \
+                         (reverse_reachability1[obj1] &
+                          reverse_reachability1[obj2])
+
+            if direction1 or direction2:
+                if common_subdiagram.is_hom_set_empty(obj1, obj2) and \
+                   common_subdiagram.is_hom_set_empty(obj2, obj1):
+                    # ``obj1`` and ``obj2`` should be connected in
+                    # order to allow merging the subdiagrams.
+                    return False
+
+        # Everything OK, the subdiagrams can be merged.
+        return True
+
+    # At the very first, we don't know which subdiagrams are
+    # commutative, so lets suppose that only trivial one-morphism
+    # subdiagrams are.
+    commutative_subdiagrams = set([])
+    for gen in diagram.expanded_generators:
+        if isinstance(gen, CompositeMorphism):
+            # Explicitly unpack composites.
+            commutative_subdiagrams.add(Diagram(*gen))
+        else:
+            commutative_subdiagrams.add(Diagram(gen))
+
+    # Now, check all embeddings of all diagrams.
+    for commutative_diagram in commutative_diagrams:
+        for embedding in diagram_embeddings(commutative_diagram, diagram):
+            # All the morphisms to which ``commutative_diagram`` has
+            # just been mapped form a commutative subdiagram.
+            #
+            # Note that, due to transitivity of morphism composition,
+            # we are allowed to unroll the composites as shown here.
+            new_subdiagram = Diagram(_unroll_composites(embedding.values()))
+
+            if any(new_subdiagram <= subdiagram
+                   for subdiagram in commutative_subdiagrams):
+                # ``new_commmutative_subset`` is fully absorbed by one
+                # of the already found subsets.
+                continue
+
+            commutative_subdiagrams.add(new_subdiagram)
+
+            # We will now perform all possible mergers and subsequent
+            # absorptions between the commutative subdiagrams.
+            more_mergers = True
+            while more_mergers:
+                more_mergers = False
+                new_commutative_subdiagrams = set([])
+
+                # Pick all pairs of subdiagrams and see if they can be
+                # merged.
+                for (subdiagram1, subdiagram2) in combinations(
+                    commutative_subdiagrams, 2):
+                    if can_subdiagrams_be_merged(subdiagram1, subdiagram2,
+                                                 commutative_subdiagrams):
+                        merged_subdiagram = Diagram(subdiagram1.generators +
+                                                    subdiagram2.generators)
+                        new_commutative_subdiagrams.add(merged_subdiagram)
+                        more_mergers = True
+                    else:
+                        new_commutative_subdiagrams.update([subdiagram1,
+                                                            subdiagram2])
+
+                # Remove the diagrams absorbed by other subdiagrams.
+                new_commutative_subdiagrams -= set(
+                    subdiagram for subdiagram in new_commutative_subdiagrams
+                    if any(subdiagram <= absorbing for absorbing
+                           in new_commutative_subdiagrams
+                           if subdiagram != absorbing))
+
+                commutative_subdiagrams = new_commutative_subdiagrams
+
+                if len(commutative_subdiagrams) == 1:
+                    one_subdiagram = iter(commutative_subdiagrams).next()
+                    if set(one_subdiagram.generators) == set(
+                        diagram.generators):
+                        # We have arrived at the conclusion that the whole
+                        # ``diagram`` is commutative.
+                        return True
+
+    # We have checked everything; ``diagram`` is not commutative.
+    return False
