@@ -520,11 +520,15 @@ def _unroll_composites(morphisms):
             new_morphisms.append(m)
     return new_morphisms
 
-def _check_commutativity_with_diagrams(diagram, commutative_diagrams):
+def _check_commutativity_with_diagrams(diagram, commutative_diagrams,
+                                       commutative_regions = ()):
     """
     Given a :class`Diagram` and a collection of :class:`Diagram`'s
     known to be commutative, decides whether ``diagram`` is
     commutative.
+
+    ``commutative_regions`` can be used to specify subdiagrams of
+    ``diagram`` which are already known to be commutative.
 
     This is known as the commutativity stage of inference [???].
 
@@ -640,7 +644,7 @@ def _check_commutativity_with_diagrams(diagram, commutative_diagrams):
     # At the very first, we don't know which subdiagrams are
     # commutative, so lets suppose that only trivial one-morphism
     # subdiagrams are.
-    commutative_subdiagrams = set([])
+    commutative_subdiagrams = set(commutative_regions)
     for gen in diagram.expanded_generators:
         if isinstance(gen, CompositeMorphism):
             # Explicitly unpack composites.
