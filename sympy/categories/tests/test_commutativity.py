@@ -1,7 +1,8 @@
 from sympy.categories import (Object, NamedMorphism, IdentityMorphism,
-                              Diagram)
+                              Diagram, Implication)
 from sympy.categories import diagram_embeddings
-from sympy.categories.commutativity import _check_commutativity_with_diagrams
+from sympy.categories.commutativity import (_check_commutativity_with_diagrams,
+                                            _apply_implication)
 from sympy import Dict
 
 def test_diagram_embeddings():
@@ -274,3 +275,53 @@ def test_check_commutativity_with_diagrams():
 
     assert _check_commutativity_with_diagrams(
         theorem, [final_object, initial_object])
+
+def test_apply_implication():
+    A = Object("A")
+    B = Object("B")
+    C = Object("C")
+    D = Object("D")
+
+    f = NamedMorphism(A, B, "f")
+    g = NamedMorphism(B, C, "g")
+    h = NamedMorphism(C, A, "h")
+
+    k1 = NamedMorphism(A, B, "k1")
+    m1 = NamedMorphism(B, D, "m1")
+    k2 = NamedMorphism(A, C, "k2")
+    m2 = NamedMorphism(C, D, "m2")
+
+    h1 = NamedMorphism(D, A, "h")
+
+    # This implication has no actual meaning.
+    imp = Implication(Diagram(f, g), Diagram({h: "bear"}))
+
+    # Test the application of a simple implication to a square
+    # diagram.
+    square = Diagram(k1, m1, k2, m2)
+    results = set([
+        (Diagram({k1: [], m1: [], k2: [], m2: [], h1: "bear"}),
+         Diagram(k1, m1, h1)),
+        (Diagram({k1: [], m1: [], k2: [], m2: [], h1: "bear"}),
+         Diagram(k2, m2, h1)),
+        ])
+    assert set(_apply_implication(imp, square)) == results
+
+    # Test the application of the implication to a square diagram
+    # which already has one morphism `h:D\rightarrow A` with the
+    # property "bear".
+    imp = Implication(Diagram({f: "anchor1", g: "anchor2"}), Diagram({h: "bear"}))
+    square = Diagram({k1: "anchor1", m1: "anchor2", k2: [], m2: [], h1: "bear"})
+    assert set(_apply_implication(imp, square)) == set([])
+
+    # Test the application of the implication to a square diagram
+    # which already has one morphism `h:D\rightarrow A` with some
+    # other property.
+    square = Diagram({k1: "anchor1", m1: "anchor2", k2: [], m2: [], h1: "plesiosaur"})
+    results = set([
+        (Diagram({k1: "anchor1", m1: "anchor2", k2: [], m2: [], h1: ["bear", "plesiosaur"]}),
+         Diagram(k1, m1, h1)),
+        (Diagram({k1: "anchor1", m1: "anchor2", k2: [], m2: [], h1: ["bear", "plesiosaur"]}),
+         Diagram(k1, m1, h1, k2, m2))
+        ])
+    assert set(_apply_implication(imp, square)) == results

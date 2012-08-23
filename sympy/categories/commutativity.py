@@ -706,3 +706,12 @@ def _check_commutativity_with_diagrams(diagram, commutative_diagrams):
 
     # We have checked everything; ``diagram`` is not commutative.
     return False
+
+def _apply_implication(implication, diagram):
+    """
+    Generates all possible applications of ``implication`` to
+    ``diagram``.  Returns tuples, the first component of which is the
+    modified ``diagram``, while the second component is the
+    commutative subdiagram which resulted from the application.
+    """
+    pass
