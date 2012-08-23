@@ -507,6 +507,19 @@ def diagram_embeddings(pattern, model):
                 embedding.update(composite_embedding)
                 yield Dict(embedding)
 
+def _unroll_composites(morphisms):
+    """
+    Given a collection of morphisms ``morphisms``, picks apart all
+    composites and lists their components instead.
+    """
+    new_morphisms = []
+    for m in morphisms:
+        if isinstance(m, CompositeMorphism):
+            new_morphisms.extend(m.components)
+        else:
+            new_morphisms.append(m)
+    return new_morphisms
+
 def _check_commutativity_with_diagrams(diagram, commutative_diagrams):
     """
     Given a :class`Diagram` and a collection of :class:`Diagram`'s
