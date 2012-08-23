@@ -714,4 +714,131 @@ def _apply_implication(implication, diagram):
     modified ``diagram``, while the second component is the
     commutative subdiagram which resulted from the application.
     """
-    pass
+    # The general idea is very similar to string rewriting: find all
+    # entries of the premise of the implication in ``diagram`` and add
+    # the conclusion (or ``implication.diff()``, more exactly).
+    conclusion = implication.conclusion
+    diff = implication.diff()
+
+    def map_simple_diff_morphism(diff_morphism, object_map):
+        """
+        Given the non-composite ``diff_morphism`` and an object
+        mapping, produces a new morphism in ``diagram`` which would
+        match ``diff_morphism``.
+        """
+        # The first two arguments of any morphism is the domain and
+        # the codomain.  This is what we need to change.
+        new_domain = object_map[diff_morphism.domain]
+        new_codomain = object_map[diff_morphism.codomain]
+        the_rest_of_args = diff_morphism.args[2:]
+        return diff_morphism.__class__(new_domain, new_codomain,
+                                       *the_rest_of_args)
+
+    def map_composite_diff_morphism(diff_composite, simple_morphism_map):
+        """
+        Given the composite ``diff_composite``, produces the
+        corresponding composite in ``diagram``.
+        """
+        return CompositeMorphism(simple_morphism_map[m] for m in diff_composite)
+
+    # We will store the already modified regions of the diagram in
+    # this set and will avoid producing duplicates.  The reason why we
+    # may be modifying the same region of ``diagram`` twice is that
+    # ``diagram_embeddings`` may yield varied embeddings of morphisms
+    # with the same domain and codomain, which will not ultimately
+    # affect the result of application.
+    registered_regions = set([])
+
+    for premise_embedding in diagram_embeddings(implication.premise, diagram):
+        # To know how to add the morphisms in ``diff``, we need to
+        # know how the objects of the premise are mapped to the
+        # objects of ``diagram``.
+        object_map = {}
+        for (premise_morphism, diagram_morphism) in premise_embedding.items():
+            object_map[premise_morphism.domain] = diagram_morphism.domain
+            object_map[premise_morphism.codomain] = diagram_morphism.codomain
+
+        # We will construct the modified diagram from this dictionary.
+        new_generators = dict(diagram.generators_properties)
+
+        # We will only explicitly try to add non-composite morphisms.
+        # Since the ``implication.conclusion`` is a diagram, this
+        # guarantees that ``modified_diagram`` will contain the
+        # necessary composites.
+        #
+        # Yet, we will still need to make sure to get the properties
+        # of composites right.  Collect composites on the way, to
+        # avoid traversing ``diff`` once again.  Also, remember how
+        # simple morphisms are added.
+        composites = []
+        simple_morphism_map = {}
+        for diff_morphism in diff:
+            if not isinstance(diff_morphism, CompositeMorphism):
+                mapped_morphism = map_simple_diff_morphism(diff_morphism,
+                                                           object_map)
+                diff_morphism_props = conclusion[diff_morphism]
+                simple_morphism_map[diff_morphism] = mapped_morphism
+
+                if mapped_morphism in diagram:
+                    # There already is such a morphism in ``diagram``.
+                    if diagram[mapped_morphism].subset(diff_morphism_props):
+                        # And it actually has all the necessary
+                        # properties.
+                        continue
+                    else:
+                        # This morphism doesn't have all the
+                        # properties; let's add them.
+                        new_generators[mapped_morphism] |= diff_morphism_props
+                else:
+                    new_generators[mapped_morphism] = diff_morphism_props
+            else:
+                composites.append(diff_morphism)
+
+        # Now, get the properties of composites right.
+        #
+        # Before that, we will need to build a provisional version of
+        # the modified diagram to be able to easily access the
+        # properties of composites.
+        modified_diagram = Diagram(new_generators)
+        new_generators = dict(modified_diagram.generators_properties)
+
+        # Store how composites are mapped as well.
+        composite_map = {}
+        for diff_composite in composites:
+            diff_composite_properties = conclusion[diff_composite]
+
+            mapped_composite = map_composite_diff_morphism(diff_composite)
+            composite_map[diff_composite] = map_composite
+
+            mapped_composite_properties = modified_diagram[mapped_composite]
+            if not mapped_composite_properties.subset(diff_composite_properties):
+                # We will need to explicitly add some to this
+                # composite.
+                new_generators[mapped_composite] = mapped_composite_properties | \
+                                                   diff_composite_properties
+
+        # Build the final version of the diagram.
+        modified_diagram = Diagram(new_generators)
+
+        if modified_diagram != diagram:
+            # We have actually changed something, we can yield the
+            # modified diagram.  However, we also have to list the
+            # affected subdiagram, which is now commutative.
+            #
+            # The values in the dictionary ``premise_embedding`` are
+            # not guaranteed to include all components of all
+            # composites, therefore we need to explicitly unroll all
+            # composites.  Note that, we can freely do so due to
+            # associativity of morphism composition.
+            unrolled_morphisms = _unroll_composites(premise_embedding.values())
+            affected_subdiagram = Diagram(unrolled_morphisms +
+                                          simple_morphism_map.values() +
+                                          composite_map.values())
+
+            if affected_subdiagram in registered_regions:
+                # We have already yielded this application,
+                # essentially.
+                continue
+            else:
+                registered_regions.add(affected_subdiagram)
+                yield (modified_diagram, affected_subdiagram)
