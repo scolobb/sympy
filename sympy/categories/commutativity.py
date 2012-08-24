@@ -641,14 +641,35 @@ def _check_commutativity_with_diagrams(diagram, commutative_diagrams,
         # Everything OK, the subdiagrams can be merged.
         return True
 
+    def composite_contains_cycle(composite):
+        """
+        Checks whether the composite morphism ``composite`` contains a
+        cycle.
+
+        This function will only detect cycles, not loops.
+        """
+        traversed_objects = set([composite.domain])
+        for component in composite:
+            if (component.domain != component.codomain) and \
+                   component.codomain in traversed_objects:
+                return True
+            traversed_objects.add(component.codomain)
+        return False
+
     # At the very first, we don't know which subdiagrams are
     # commutative, so lets suppose that only trivial one-morphism
     # subdiagrams are.
+    #
+    # We do not create commutative subdiagrams out of morphisms which
+    # traverse a cycle.  Doing so would result in automatic (and
+    # wrong) decision that the corresponding composite is an identity
+    # morphism.
     commutative_subdiagrams = set(commutative_regions)
     for gen in diagram.expanded_generators:
         if isinstance(gen, CompositeMorphism):
-            # Explicitly unpack composites.
-            commutative_subdiagrams.add(Diagram(*gen))
+            if not composite_contains_cycle(gen):
+                # Explicitly unpack composites.
+                commutative_subdiagrams.add(Diagram(*gen))
         else:
             commutative_subdiagrams.add(Diagram(gen))
 
