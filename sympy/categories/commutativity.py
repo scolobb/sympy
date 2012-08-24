@@ -648,12 +648,36 @@ def _check_commutativity_with_diagrams(diagram, commutative_diagrams,
 
         This function will only detect cycles, not loops.
         """
+        if not isinstance(composite, CompositeMorphism):
+            return False
+
         traversed_objects = set([composite.domain])
         for component in composite:
             if (component.domain != component.codomain) and \
                    component.codomain in traversed_objects:
                 return True
             traversed_objects.add(component.codomain)
+        return False
+
+    def embedding_contains_bad_cycles(embedding):
+        """
+        Checks whether the embedding maps some composite morphisms to
+        cycles which do not have their counterpart in the embedded
+        diagram.
+        """
+        covered_morphisms = set(embedding.values())
+
+        for composite, mapped_composite in embedding.items():
+            if not composite_contains_cycle(mapped_composite):
+                continue
+
+            # If all components of ``mapped_composite`` have a
+            # counterpart in the embedded diagram, that's alright,
+            # because the embedded diagram is known to be commutative.
+            for mapped_component in mapped_composite:
+                if mapped_component not in covered_morphisms:
+                    return True
+
         return False
 
     # At the very first, we don't know which subdiagrams are
@@ -678,10 +702,15 @@ def _check_commutativity_with_diagrams(diagram, commutative_diagrams,
         for embedding in diagram_embeddings(commutative_diagram, diagram):
             # All the morphisms to which ``commutative_diagram`` has
             # just been mapped form a commutative subdiagram.
-            #
-            # Note that, due to transitivity of morphism composition,
-            # we are allowed to unroll the composites as shown here.
-            new_subdiagram = Diagram(_unroll_composites(embedding.values()))
+
+            resulting_morphisms = embedding.values()
+            if embedding_contains_bad_cycles(embedding):
+                continue
+            else:
+                # Due to transitivity of morphism composition, we are
+                # allowed to unroll the composites as shown here.
+                new_subdiagram = Diagram(_unroll_composites(
+                    resulting_morphisms))
 
             if any(new_subdiagram <= subdiagram
                    for subdiagram in commutative_subdiagrams):
