@@ -16,7 +16,7 @@ References
 J. Association of Computing Machinery, March, 1976, 16, 31--42.
 """
 
-from sympy.categories import Diagram, CompositeMorphism
+from sympy.categories import Diagram, CompositeMorphism, Implication
 from sympy import zeros, Matrix, Dict
 from itertools import product, combinations
 
@@ -904,4 +904,71 @@ def is_diagram_commutative(diagram, commutative_diagrams_implications):
 
     TODO: Expand the docstring
     """
-    pass
+    commutative_diagrams = []
+    commutative_implications = []
+    for diagram_implication in commutative_diagrams_implications:
+        if isinstance(diagram_implication, Diagram):
+            commutative_diagrams.append(diagram_implication)
+        elif isinstance(diagram_implication, Implication):
+            commutative_implications.append(diagram_implication)
+
+    def recursive_check(diagram, affected_subdiagrams, depth):
+        """
+        Performs a recursive check of commutativity of ``diagram``.
+
+        ``affected_subdiagrams`` maps commutative implications to sets
+        of subdiagrams which resulted from their applications.
+        """
+        if depth > 3:
+            return False
+
+        for implication in commutative_implications:
+            for (modified_diagram, affected_subdiagram) in _apply_implication(
+                implication, diagram):
+                # Clone the dictionary because to assure that
+                # different iterations of this loop do not interfere
+                # with one another.
+                new_affected_subdiagrams = dict(affected_subdiagrams)
+
+                if implication in new_affected_subdiagrams:
+                    if affected_subdiagram in new_affected_subdiagrams[
+                        implication]:
+                        # We have already applied ``implication`` to this
+                        # subdiagram.
+                        continue
+                    else:
+                        # We haven't applied implication to this
+                        # region.  (But we have applied it somewhere
+                        # else.)
+                        new_affected_subdiagrams[implication].add(
+                            affected_subdiagram)
+                else:
+                    # We have never applied ``implication`` before.
+                    new_affected_subdiagrams[implication] = set(
+                        [affected_subdiagram])
+
+                if recursive_check(modified_diagram, new_affected_subdiagrams, depth + 1):
+                    return True
+
+        # Check if the given commutative diagrams suffice to show that
+        # ``diagram`` is commutative.
+
+        # Some implications may have already been applied before this
+        # moment; collect the regions these applications affected,
+        # since they are commutative.
+        if affected_subdiagrams:
+            commutative_regions = set.intersection(
+                *affected_subdiagrams.values())
+        else:
+            commutative_regions = set([])
+
+        if _check_commutativity_with_diagrams(diagram, commutative_diagrams,
+                                              commutative_regions):
+            # We have just proved that ``diagram`` is commutative.
+            return True
+
+        # Up to here all options have been checked.
+        return False
+
+    # Recursively explore the commutativity of ``diagram``.
+    return recursive_check(diagram, {}, 0)
